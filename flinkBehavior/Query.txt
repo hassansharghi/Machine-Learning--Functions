@@ -1,0 +1,27 @@
+    
+//*********** Sequence Pattern length 2 ******************************   
+ //Suspicious pattern: Find the behavior pattern of a user in any role who first reads and then writes the patients diagnostic reports within 60 seconds.   
+        
+         Pattern<Measurement, ?> alarmPattern = Pattern.<Measurement>begin("first") 
+          		 .subtype(TempMeasurement.class)
+                 .where(evt -> evt.getAction().equals("A-10") &&  evt.getRes().equals("S-1") )                          
+                 .next("second")
+                 .subtype(TempMeasurement.class)
+                 .where(evt -> evt.getAction().equals("A-17") && evt.getRes().equals("S-1"))                 
+                 .within(Time.seconds(60));        
+
+          //Match and Create a pattern stream from alarmPattern
+          PatternStream<Measurement> patternStream = CEP.pattern(partitionedInput, alarmPattern);
+
+          // Generate warning (capture user and actions) for each matched alarm pattern
+          DataStream<SuspiciousPatternAlarm> alarms = patternStream.select(new PatternSelectFunction<Measurement, SuspiciousPatternAlarm>() {
+              @Override
+              public SuspiciousPatternAlarm select(Map<String, Measurement> pattern) throws Exception {
+              	TempMeasurement first = (TempMeasurement) pattern.get("first");            	
+              	TempMeasurement second = (TempMeasurement) pattern.get("second");               	          
+
+                return new SuspiciousPatternAlarm(first.getUserID() , String.valueOf(first.getID())+ "," + String.valueOf(second.getID()), first.getRes());
+              }
+          });
+   //*******************************************************        
+   
